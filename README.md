@@ -123,10 +123,17 @@ preview deployments ever get their own database, gate the migrate half of
 `vercel-build` on `VERCEL_ENV=production` so previews can't touch production.
 
 > **A public URL has no login, by design.** Anyone who has the link can upload a
-> receipt, and each one costs roughly $0.01–0.03 of your API budget. That's fine
-> for a link texted to a few people. Set a **spend limit** on the key so the
-> worst case is a number you chose, and add rate limiting before sharing it
-> anywhere public.
+> receipt, and each one costs roughly $0.01–0.03 of your API budget.
+>
+> Two things guard that. Uploads are **rate limited to 10 per IP per hour**
+> (override with `UPLOAD_RATE_LIMIT`) — far more than a real table needs, and
+> useless to anything scraping the URL. Viewing and claiming are unlimited, so
+> the friction lands on spending rather than on the people splitting the bill.
+>
+> The limiter is in-memory, so on serverless it caps per instance rather than
+> globally — best-effort, not a guarantee. The hard backstop is a **spend limit
+> on the API key**, which you set in the Anthropic Console and which no amount
+> of application code can replace. Set one.
 
 ## Design notes
 

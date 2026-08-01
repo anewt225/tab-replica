@@ -6,6 +6,7 @@ import { newSlug } from "@/lib/bills";
 import { ensureDeviceId } from "@/lib/device";
 import { storeReceipt } from "@/lib/storage";
 import { extractReceipt, isSupportedMediaType, toBillDraft } from "@/lib/ocr/extract";
+import { createRateLimiter, clientKey } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 // Opus reading a dense receipt can take a while; don't cut it off at the default.
@@ -14,11 +15,43 @@ export const maxDuration = 120;
 const MAX_BYTES = 12 * 1024 * 1024;
 
 /**
+ * This is the only route that costs money. Ten receipts an hour is far more
+ * than a real table ever needs and useless to anything scraping the URL.
+ * Claiming items and viewing bills are unlimited — the friction belongs on
+ * spending, not on the people splitting the bill.
+ */
+const uploadLimiter = createRateLimiter({
+  limit: Number(process.env.UPLOAD_RATE_LIMIT ?? 10),
+  windowMs: 60 * 60 * 1000,
+});
+
+/**
  * Upload a receipt and get back a bill. OCR runs inline rather than as a
  * background job: it takes a few seconds, the user is staring at a spinner
  * anyway, and a queue would be a lot of moving parts for one API call.
  */
 export async function POST(request: Request) {
+  // Checked before reading the body: no point buffering 12 MB from someone
+  // we're about to turn away.
+  const limit = uploadLimiter.check(clientKey(request));
+  if (!limit.allowed) {
+    const minutes = Math.ceil(limit.retryAfterSeconds / 60);
+    return NextResponse.json(
+      {
+        error:
+          `That's a lot of receipts in one go. Try again in about ${minutes} ` +
+          `${minutes === 1 ? "minute" : "minutes"}.`,
+      },
+      {
+        status: 429,
+        headers: {
+          "retry-after": String(limit.retryAfterSeconds),
+          "x-ratelimit-remaining": "0",
+        },
+      },
+    );
+  }
+
   const deviceId = await ensureDeviceId();
 
   let form: FormData;
