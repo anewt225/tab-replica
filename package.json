@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "pnpm db:migrate && next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",

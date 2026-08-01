@@ -83,9 +83,30 @@ GitHub repository.
 
 ### Deploying to Vercel
 
-Built for Vercel plus any Postgres (Neon, Vercel Postgres, Supabase). Set these
-under **Project Settings → Environment Variables** — Vercel stores them
-encrypted, so the key still never touches the repository:
+Built for Vercel plus any Postgres (Neon, Vercel Postgres, Supabase). In order:
+
+1. **Create a Postgres database** and copy its connection string.
+2. **Import the GitHub repo** into Vercel.
+3. **Add the environment variables below _before_ the first deploy** — under
+   **Project → Settings → Environment Variables**, or in the Environment
+   Variables section Vercel shows during import. Tick Production, Preview and
+   Development unless you want different values per environment.
+4. **Deploy.** The `vercel-build` script runs migrations and then builds, so the
+   database has its tables before the app serves a request. A bad or missing
+   `DATABASE_URL` fails the build rather than shipping a site that errors on
+   every page.
+5. **Open the URL and upload a receipt** to confirm OCR works end to end.
+
+Two things that catch people out:
+
+- **Environment variables are read at build and start time.** Changing one on an
+  existing project does nothing until you redeploy (Deployments → ⋯ → Redeploy).
+- **Never prefix a secret with `NEXT_PUBLIC_`.** That prefix bakes the value
+  into the JavaScript sent to browsers. There are none in this project, and the
+  API key is only ever used from server-side code, so it never reaches a
+  visitor's device — one key on the server serves everyone who opens the link.
+
+Vercel stores these encrypted, so the key never touches the repository:
 
 | Variable | Required | What it's for |
 |---|---|---|
@@ -97,8 +118,15 @@ encrypted, so the key still never touches the repository:
 Use a **separate key for production** from the one on your laptop, so a leak in
 one place doesn't force you to rotate both.
 
-Run `pnpm db:migrate` against the production `DATABASE_URL` once before the
-first deploy.
+Migrations run automatically on deploy — there's no manual database step. If
+preview deployments ever get their own database, gate the migrate half of
+`vercel-build` on `VERCEL_ENV=production` so previews can't touch production.
+
+> **A public URL has no login, by design.** Anyone who has the link can upload a
+> receipt, and each one costs roughly $0.01–0.03 of your API budget. That's fine
+> for a link texted to a few people. Set a **spend limit** on the key so the
+> worst case is a number you chose, and add rate limiting before sharing it
+> anywhere public.
 
 ## Design notes
 
