@@ -24,7 +24,11 @@ export function useLiveBill(slug: string, initial: SerializedBill) {
 
   // Refs, not state: these change every tick and must not trigger a re-render.
   const versionRef = useRef(initial.version);
-  const lastChangeRef = useRef(Date.now());
+  // Seeded on mount in the effect below rather than here — a `useRef(Date.now())`
+  // initializer re-runs `Date.now()` on every render (the argument is evaluated
+  // even though only the first value is kept), which is both wasteful and impure
+  // during render.
+  const lastChangeRef = useRef(0);
 
   const refetch = useCallback(async () => {
     const response = await fetch(`/api/bills/${slug}`, { cache: "no-store" });
@@ -38,6 +42,11 @@ export function useLiveBill(slug: string, initial: SerializedBill) {
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
+
+    // Mount counts as the last "change" — without this the first tick would see
+    // a zero timestamp, conclude the bill had been quiet forever, and drop
+    // straight to the 10s idle interval instead of polling actively.
+    lastChangeRef.current = Date.now();
 
     async function tick() {
       if (cancelled) return;

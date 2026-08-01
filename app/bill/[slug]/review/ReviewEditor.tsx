@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Receipt, ReceiptHeader, Rule, TotalRow } from "@/components/Receipt";
+import { Receipt, Rule, TotalRow } from "@/components/Receipt";
 import { formatCents, parseCents, centsToDecimalString } from "@/lib/money";
 import type { SerializedBill } from "@/lib/bills";
 

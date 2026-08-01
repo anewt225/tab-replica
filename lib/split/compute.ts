@@ -108,7 +108,7 @@ export function allocate(amountCents: number, weights: number[]): number[] {
     distributed += share;
   }
 
-  let leftover = abs - distributed;
+  const leftover = abs - distributed;
   const order = remainders
     .map((rem, i) => ({ i, rem }))
     .sort((a, b) => b.rem - a.rem || a.i - b.i);
