@@ -30,7 +30,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "pnpm build && pnpm start --port 3100",
+    // CI builds in its own step, so don't compile a second time there.
+    command: process.env.CI
+      ? "pnpm start --port 3100"
+      : "pnpm build && pnpm start --port 3100",
     url: "http://127.0.0.1:3100",
     reuseExistingServer: !process.env.CI,
     timeout: 240_000,
