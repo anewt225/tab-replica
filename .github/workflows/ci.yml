@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  # Only main on push. Branch pushes are covered by `pull_request` once a PR is
+  # open; listing both here runs every job twice for the same commit.
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, tests, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # No `version:` here on purpose — package.json's `packageManager` field
+      # pins pnpm, and action-setup errors out if the version is given twice.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      # The money math: 59 unit and property-based tests, including thousands
+      # of randomized bills checked against the sum-equals-total invariant.
+      - run: pnpm test
+
+      # No DATABASE_URL needed — lib/db/client.ts connects lazily, so a build
+      # never opens a connection.
+      - run: pnpm build
+
+  e2e:
+    name: Two-device live sync
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: tab
+          POSTGRES_PASSWORD: tab
+          POSTGRES_DB: tab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tab -d tab"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # The service publishes 5432. docker-compose.yml uses 5433 locally to
+      # avoid colliding with a developer's own Postgres, so this must be set
+      # explicitly rather than relying on the fallback in playwright.config.ts.
+      DATABASE_URL: postgres://tab:tab@localhost:5432/tab
+      DEVICE_COOKIE_SECRET: ci-only-not-a-real-secret
+      # Bills are seeded through /api/test/seed, so no ANTHROPIC_API_KEY is
+      # needed and no OCR call is made.
+      ENABLE_TEST_ROUTES: "1"
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # No `version:` here on purpose — package.json's `packageManager` field
+      # pins pnpm, and action-setup errors out if the version is given twice.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - run: pnpm db:migrate
+
+      # Built here rather than by Playwright's webServer; the config skips its
+      # own build when CI is set.
+      - run: pnpm build
+
+      - run: pnpm test:e2e
+
+      # Traces for whatever failed. The reporter is `list`, so there is no HTML
+      # report directory — don't fail the job looking for one.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
