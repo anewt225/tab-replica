@@ -38,13 +38,67 @@ pnpm dev
 Only `ANTHROPIC_API_KEY` costs money — roughly $0.01–0.03 per receipt. Without
 it everything works except OCR; you can still key a receipt in by hand.
 
-### Deploying
+## Configuration
 
-Built for Vercel plus any Postgres (Neon, Vercel Postgres, Supabase). Set
-`DATABASE_URL`, `ANTHROPIC_API_KEY`, `DEVICE_COOKIE_SECRET`
-(`openssl rand -hex 32`), and `BLOB_READ_WRITE_TOKEN` for receipt image storage.
-Without a blob token, images are written to `./uploads` — fine locally, not on
-serverless.
+### Your Anthropic API key, locally
+
+The key is what lets the app read receipts. It goes in `.env`, which is listed
+in `.gitignore` and therefore cannot be committed:
+
+```bash
+cp .env.example .env      # if you haven't already
+```
+
+Then edit `.env` and fill in the line:
+
+```
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+That's the whole setup — nothing else to wire up. Next.js reads `.env`
+automatically for `dev`, `build` and `start`, and the standalone scripts opt in
+via `tsx --env-file-if-exists=.env`, so `pnpm ocr:check` picks the key up with
+no extra flags.
+
+Confirm it never gets committed:
+
+```bash
+git status --porcelain .env    # should print nothing
+```
+
+**Handling the key**
+
+- **Don't paste it into a chat, an issue, or a PR description.** Treat anything
+  pasted into a conversation as disclosed, and rotate it.
+- **Create a key dedicated to this project** in the [Anthropic
+  Console](https://console.anthropic.com/settings/keys) rather than reusing an
+  existing one, so it can be revoked on its own. Set a spend limit while you're
+  there — OCR runs roughly $0.01–0.03 per receipt.
+- **If it leaks, revoke first, then reissue.** Rotating a key is cheap; working
+  out whether an exposure mattered is not.
+
+CI needs no key. The end-to-end job seeds bills through `/api/test/seed`
+precisely so it never spends an API call, so there's no secret to add to the
+GitHub repository.
+
+### Deploying to Vercel
+
+Built for Vercel plus any Postgres (Neon, Vercel Postgres, Supabase). Set these
+under **Project Settings → Environment Variables** — Vercel stores them
+encrypted, so the key still never touches the repository:
+
+| Variable | Required | What it's for |
+|---|---|---|
+| `DATABASE_URL` | Yes | Postgres connection string |
+| `DEVICE_COOKIE_SECRET` | Yes | Signs the device cookie. Generate with `openssl rand -hex 32` — the app refuses to start in production without it |
+| `ANTHROPIC_API_KEY` | For OCR | Receipt transcription. Without it everything works except reading receipts |
+| `BLOB_READ_WRITE_TOKEN` | Recommended | Receipt image storage. Without it images are written to `./uploads`, which does not survive on serverless |
+
+Use a **separate key for production** from the one on your laptop, so a leak in
+one place doesn't force you to rotate both.
+
+Run `pnpm db:migrate` against the production `DATABASE_URL` once before the
+first deploy.
 
 ## Design notes
 
@@ -88,6 +142,8 @@ handle and an amount. No payment credentials are stored or transmitted.
 ```bash
 pnpm test        # split math, balances, payment links (unit + property-based)
 pnpm test:e2e    # two browser contexts on one bill, verifying live sync
+pnpm typecheck   # TypeScript
+pnpm lint        # ESLint (advisory in CI — reports, doesn't block)
 pnpm ocr:check   # run real receipt photos through extraction
 ```
 

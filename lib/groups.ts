@@ -57,7 +57,6 @@ export async function getGroupSummary(slug: string): Promise<GroupSummary | null
   const ledgers = [];
   const billRows: GroupSummary["bills"] = [];
   const skipped: GroupSummary["skipped"] = [];
-  const memberNames = new Map(members.map((m) => [m.id, m.displayName]));
 
   for (const bill of groupBills) {
     const [items, people] = await Promise.all([

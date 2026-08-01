@@ -32,6 +32,11 @@ jobs:
 
       - run: pnpm typecheck
 
+      # Advisory: reports but never fails the build. The baseline is clean, so
+      # anything it prints is new. Delete continue-on-error to make it blocking.
+      - run: pnpm lint
+        continue-on-error: true
+
       # The money math: 59 unit and property-based tests, including thousands
       # of randomized bills checked against the sum-equals-total invariant.
       - run: pnpm test
