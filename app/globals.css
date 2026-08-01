@@ -1,0 +1,163 @@
+@import "tailwindcss";
+
+/*
+  Aesthetic: thermal receipt paper.
+  The app looks like the object it replaces — paper stock, dashed tear rules,
+  perforated edges, tabular monospace figures in a right-aligned money column,
+  and a single stamped vermilion accent for anything claimed.
+*/
+
+@theme {
+  --color-paper: #fbfaf7;
+  --color-paper-sunk: #f2efe8;
+  --color-paper-edge: #e4dfd3;
+  --color-ink: #16150f;
+  --color-ink-soft: #58544a;
+  --color-ink-faint: #8e8877;
+  --color-stamp: #d93b1f;
+  --color-stamp-soft: #fbe6e1;
+  --color-carbon: #2b3a8c;
+  --color-carbon-soft: #e6e9f7;
+  --color-mint: #1f7a5c;
+
+  --font-display: var(--font-instrument-serif), Georgia, serif;
+  --font-sans: var(--font-instrument-sans), ui-sans-serif, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  --radius-card: 4px;
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+/*
+  Dark mode overrides the generated custom properties directly. A second
+  `@theme` block nested in a media query does NOT work — Tailwind v4 hoists
+  `@theme` out of the query, which makes the dark palette unconditional and the
+  light one unreachable.
+*/
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-paper: #17161a;
+    --color-paper-sunk: #1f1e23;
+    --color-paper-edge: #2e2c33;
+    --color-ink: #f2efe8;
+    --color-ink-soft: #a7a296;
+    --color-ink-faint: #8a8578;
+    --color-stamp: #ff6a4d;
+    --color-stamp-soft: #3a201a;
+    --color-carbon: #8fa0e8;
+    --color-carbon-soft: #1e2340;
+    --color-mint: #4fbf95;
+  }
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--color-paper-sunk);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  /* Paper grain. Subtle enough to read as texture, not noise. */
+  background-image: radial-gradient(
+    var(--color-paper-edge) 0.5px,
+    transparent 0.5px
+  );
+  background-size: 14px 14px;
+  min-height: 100dvh;
+  overscroll-behavior-y: none;
+}
+
+/* Money and quantities always use tabular figures so columns line up. */
+.tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/*
+  A receipt: paper stock with torn perforation top and bottom.
+  The zigzag is a CSS mask so it works over any background.
+*/
+.receipt {
+  background-color: var(--color-paper);
+  position: relative;
+  --tear: 9px;
+  mask-image:
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg),
+    conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg);
+  mask-size: calc(var(--tear) * 2) 100%;
+  mask-composite: intersect;
+  mask-repeat: repeat-x;
+  padding-block: calc(var(--tear) + 0.5rem);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rise {
+    animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+  .stamp-in {
+    animation: stamp 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes stamp {
+  from {
+    opacity: 0;
+    transform: scale(1.35) rotate(-6deg);
+  }
+}
+
+/* Receipt tear rule — the dashed separator between printed sections. */
+.rule {
+  border: 0;
+  border-top: 1.5px dashed var(--color-paper-edge);
+}
+
+/* Every tappable row clears the 44px minimum comfortably. */
+.tap {
+  min-height: 3.25rem;
+  touch-action: manipulation;
+  transition:
+    background-color 0.14s ease,
+    transform 0.1s ease;
+}
+.tap:active {
+  transform: scale(0.988);
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+/* iOS zooms the viewport on focus for anything under 16px. */
+input,
+textarea,
+select {
+  font-size: max(16px, 1em);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-carbon);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--color-stamp);
+  color: var(--color-paper);
+}
