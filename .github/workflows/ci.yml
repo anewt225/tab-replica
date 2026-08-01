@@ -1,8 +1,10 @@
 name: CI
 
 on:
+  # Only main on push. Branch pushes are covered by `pull_request` once a PR is
+  # open; listing both here runs every job twice for the same commit.
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -17,9 +19,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # No `version:` here on purpose — package.json's `packageManager` field
+      # pins pnpm, and action-setup errors out if the version is given twice.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v5
         with:
@@ -70,9 +72,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # No `version:` here on purpose — package.json's `packageManager` field
+      # pins pnpm, and action-setup errors out if the version is given twice.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v5
         with:
